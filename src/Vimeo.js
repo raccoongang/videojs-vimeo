@@ -15,17 +15,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE. */
-(function (root, factory) {
-  if(typeof define === 'function' && define.amd) {
-    define(['video.js'], function(videojs){
-      return (root.Vimeo = factory(videojs));
-    });
-  } else if(typeof module === 'object' && module.exports) {
-    module.exports = (root.Vimeo = factory(require('video.js')));
-  } else {
-    root.Vimeo = factory(root.videojs);
-  }
-}(this, function(videojs) {
+(function() {
   'use strict';
 
   var VimeoState = {
@@ -101,12 +91,12 @@ THE SOFTWARE. */
       }
 
       if(this.options_.poster == "") {
-        $.getJSON(this.baseApiUrl + this.videoId + '.json?callback=?', {format: "json"}, (function(_this){
-          return function(data) {
-            // Set the low resolution first
-            _this.setPoster(data[0].thumbnail_large);
-          };
-        })(this));
+        // $.getJSON(this.baseApiUrl + this.videoId + '.json?callback=?', {format: "json"}, (function(_this){
+        //   return function(data) {
+        //     // Set the low resolution first
+        //     _this.setPoster(data[0].thumbnail_large);
+        //   };
+        // })(this));
       }
 
       return divWrapper;
@@ -234,12 +224,12 @@ THE SOFTWARE. */
 
       if (!this.options_.poster) {
         if (this.url.videoId) {
-          $.getJSON(this.baseApiUrl + this.videoId + '.json?callback=?', {format: "json"}, (function(_this){
-            return function(data) {
-              // Set the low resolution first
-              _this.poster_ = data[0].thumbnail_small;
-            };
-          })(this));
+          // $.getJSON(this.baseApiUrl + this.videoId + '.json?callback=?', {format: "json"}, (function(_this){
+          //   return function(data) {
+          //     // Set the low resolution first
+          //     _this.poster_ = data[0].thumbnail_small;
+          //   };
+          // })(this));
 
           // Check if their is a high res
           this.checkHighResPoster();
@@ -260,35 +250,58 @@ THE SOFTWARE. */
     },
 
     //TRIGGER
-    load : function(){},
-    play : function(){ this.vimeo.api('play'); },
-    pause : function(){ this.vimeo.api('pause'); },
-    paused : function(){
-      return this.vimeoInfo.state !== VimeoState.PLAYING &&
-             this.vimeoInfo.state !== VimeoState.BUFFERING;
+    load: function() {},
+
+    play: function() { this.vimeo.api('play'); },
+
+    pause: function() { this.vimeo.api('pause'); },
+
+    paused: function() {
+        return this.vimeoInfo.state !== VimeoState.PLAYING &&
+            this.vimeoInfo.state !== VimeoState.BUFFERING;
     },
 
-    currentTime : function(){ return this.vimeoInfo.time || 0; },
+    ended: function() {
+        return this.vimeoInfo ? (this.vimeoInfo.state === VimeoState.ENDED) : false;
+    },
 
-    setCurrentTime :function(seconds){
+    currentTime: function() {
+        return this.vimeoInfo.time || 0;
+    },
+
+    setCurrentTime: function(seconds){
       this.vimeo.api('seekTo', seconds);
       this.player_.trigger('timeupdate');
     },
 
-    duration :function(){ return this.vimeoInfo.duration || 0; },
-    buffered :function(){ return videojs.createTimeRange(0, (this.vimeoInfo.buffered*this.vimeoInfo.duration) || 0); },
+    duration: function() {
+        return this.vimeoInfo.duration || 0;
+    },
 
-    volume :function() { return (this.vimeoInfo.muted)? this.vimeoInfo.muteVolume : this.vimeoInfo.volume; },
-    setVolume :function(percentAsDecimal){
+    buffered: function() {
+        return videojs.createTimeRange(0, (this.vimeoInfo.buffered*this.vimeoInfo.duration) || 0);
+    },
+
+    volume: function() {
+        return (this.vimeoInfo.muted)? this.vimeoInfo.muteVolume : this.vimeoInfo.volume;
+    },
+
+    setVolume: function(percentAsDecimal){
       this.vimeo.api('setvolume', percentAsDecimal);
       this.vimeoInfo.volume = percentAsDecimal;
+      this.vimeoInfo.muteVolume = percentAsDecimal;
       this.player_.trigger('volumechange');
     },
-    currentSrc :function() {
+
+    currentSrc: function() {
       return this.el_.src;
     },
-    muted :function() { return this.vimeoInfo.muted || false; },
-    setMuted :function(muted) {
+
+    muted: function() {
+        return this.vimeoInfo.muted || false;
+    },
+
+    setMuted: function(muted) {
       if (muted) {
         this.vimeoInfo.muteVolume = this.vimeoInfo.volume;
         this.setVolume(0);
@@ -300,39 +313,50 @@ THE SOFTWARE. */
       this.player_.trigger('volumechange');
     },
 
-    // Tries to get the highest resolution thumbnail available for the video
-    checkHighResPoster: function(){
-      var uri = '';
+    playbackRate: function() {
+      return this.suggestedRate ? this.suggestedRate : 1;
+    },
 
-      try {
-
-        $.getJSON(this.baseApiUrl + this.videoId + '.json?callback=?', {format: "json"}, (function(_uri){
-          return function(data) {
-            // Set the low resolution first
-            _uri = data[0].thumbnail_large;
-          };
-        })(uri));
-
-        var image = new Image();
-        image.onload = function(){
-          // Onload thumbnail
-          if('naturalHeight' in this){
-            if(this.naturalHeight <= 90 || this.naturalWidth <= 120) {
-              this.onerror();
-              return;
-            }
-          } else if(this.height <= 90 || this.width <= 120) {
-            this.onerror();
-            return;
-          }
-
-          this.poster_ = uri;
-          this.trigger('posterchange');
-        }.bind(this);
-        image.onerror = function(){};
-        image.src = uri;
+    setPlaybackRate: function(suggestedRate) {
+      if (!this.vimeo) {
+        return;
       }
-      catch(e){}
+      // var d = this.vimeo.playbackRate(suggestedRate);
+      this.suggestedRate = suggestedRate;
+      this.player_.trigger('ratechange');
+    },
+
+    // Tries to get the highest resolution thumbnail available for the video
+    checkHighResPoster: function() {
+      var uri = '';
+      // try {
+      //   $.getJSON(this.baseApiUrl + this.videoId + '.json?callback=?', {format: "json"}, (function(_uri){
+      //     return function(data) {
+      //       // Set the low resolution first
+      //       _uri = data[0].thumbnail_large;
+      //     };
+      //   })(uri));
+
+      //   var image = new Image();
+      //   image.onload = function(){
+      //     // Onload thumbnail
+      //     if('naturalHeight' in this){
+      //       if(this.naturalHeight <= 90 || this.naturalWidth <= 120) {
+      //         this.onerror();
+      //         return;
+      //       }
+      //     } else if(this.height <= 90 || this.width <= 120) {
+      //       this.onerror();
+      //       return;
+      //     }
+
+      //     this.poster_ = uri;
+      //     this.trigger('posterchange');
+      //   }.bind(this);
+      //   image.onerror = function(){};
+      //   image.src = uri;
+      // }
+      // catch(e){}
     }
   });
 
@@ -366,7 +390,7 @@ THE SOFTWARE. */
               '.vjs-vimeo .vjs-iframe-blocker { display: none; }' +
               '.vjs-vimeo.vjs-user-inactive .vjs-iframe-blocker { display: block; }' +
               '.vjs-vimeo .vjs-poster { background-size: cover; }' +
-              '.vjs-vimeo { height:100%; }' +
+              // '.vjs-vimeo { height:100%; }' +
               '.vimeoplayer { width:100%; height:180%; position:absolute; left:0; top:-40%; }';
 
     var head = document.head || document.getElementsByTagName('head')[0];
@@ -663,4 +687,4 @@ THE SOFTWARE. */
       return (window.Froogaloop = window.$f = Froogaloop);
 
   })();
-}));
+})();
